@@ -59,6 +59,8 @@
     .result { margin-top: 16px; padding: 14px; border: 1px solid #30363d; border-radius: 8px; background: #0d1117; }
     .result-header { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; color: #8b949e; }
     .result pre { background: #010409; padding: 12px; border-radius: 6px; overflow-x: auto; color: #c9d1d9; }
+    details summary { user-select: none; }
+    details[open] summary { margin-bottom: 12px; }
     mark { background: #39d353; color: #0b0f14; padding: 0 2px; border-radius: 2px; }
     .pagination { display: flex; gap: 10px; margin-top: 16px; align-items: center; }
     .pagination a { text-decoration: none; color: #58a6ff; }
@@ -92,7 +94,16 @@
   <canvas id="matrix"></canvas>
   <div class="container">
     <div class="card">
-      <h1 class="title">全文检索</h1>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h1 class="title" style="margin: 0;">全文检索</h1>
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <span class="muted">用户: <strong>{{ current_user.username }}</strong></span>
+          {% if current_user.is_admin %}
+            <a href="{{ url_for('admin') }}" style="color: #58a6ff; text-decoration: none; font-size: 13px;">管理后台</a>
+          {% endif %}
+          <a href="{{ url_for('logout') }}" style="color: #58a6ff; text-decoration: none; font-size: 13px;">退出</a>
+        </div>
+      </div>
       <form class="search" method="get" action="/" id="search-form">
         <input type="text" name="q" placeholder="输入关键词" value="{{ q }}" id="search-input" autocomplete="off" />
         <input type="hidden" name="page" value="1" />
@@ -115,7 +126,11 @@
       {% endif %}
 
       {% if results %}
-        <p class="muted">共 {{ results.hits.total.value }} 条结果，当前第 {{ page }} 页。</p>
+        <p class="muted">
+          共 {{ results.hits.total.value }} 条结果，当前第 {{ page }} 页。
+          查询耗时: {{ results.took }}ms
+          {% if results.timed_out %} (超时) {% endif %}
+        </p>
         {% for hit in results.hits.hits %}
           <div class="result">
             <div class="result-header">
@@ -132,7 +147,10 @@
                 {% endfor %}
               </ul>
             {% endif %}
-            <pre>{{ hit._source | tojson_pretty }}</pre>
+            <details style="margin-top: 12px;">
+              <summary style="cursor: pointer; color: #58a6ff; font-size: 13px; margin-bottom: 8px;">查看完整数据</summary>
+              <pre>{{ hit._source | tojson_pretty }}</pre>
+            </details>
           </div>
         {% endfor %}
 
