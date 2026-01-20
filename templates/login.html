@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>登录 - 全文检索</title>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #0b0f14;
+      color: #e6edf3;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    #matrix {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background: #0b0f14;
+    }
+    .login-container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 400px;
+      padding: 24px;
+    }
+    .login-card {
+      background: rgba(13, 17, 23, 0.92);
+      border-radius: 12px;
+      padding: 32px;
+      border: 1px solid rgba(48, 54, 61, 0.8);
+      box-shadow: 0 6px 30px rgba(0,0,0,.5);
+      backdrop-filter: blur(8px);
+    }
+    .login-title {
+      font-size: 26px;
+      margin: 0 0 8px;
+      text-align: center;
+      background: linear-gradient(135deg, #2ea043, #39d353);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .login-subtitle {
+      text-align: center;
+      color: #8b949e;
+      font-size: 13px;
+      margin-bottom: 24px;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #c9d1d9;
+    }
+    .form-input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      font-size: 14px;
+      background: #0d1117;
+      color: #c9d1d9;
+      transition: border-color 0.2s;
+    }
+    .form-input:focus {
+      outline: none;
+      border-color: #2ea043;
+    }
+    .btn-login {
+      width: 100%;
+      padding: 12px;
+      border: 0;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #2ea043, #238636);
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: transform 0.1s;
+    }
+    .btn-login:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(46, 160, 67, 0.3);
+    }
+    .btn-login:active {
+      transform: translateY(0);
+    }
+    .alert {
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-size: 13px;
+    }
+    .alert-error {
+      background: rgba(248, 81, 73, 0.1);
+      border: 1px solid rgba(248, 81, 73, 0.3);
+      color: #ff7b72;
+    }
+    .default-hint {
+      text-align: center;
+      margin-top: 16px;
+      padding: 10px;
+      background: rgba(46, 160, 67, 0.1);
+      border: 1px solid rgba(46, 160, 67, 0.3);
+      border-radius: 6px;
+      font-size: 12px;
+      color: #7ee787;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="matrix"></canvas>
+  <div class="login-container">
+    <div class="login-card">
+      <h1 class="login-title">全文检索系统</h1>
+      <p class="login-subtitle">Elasticsearch Search Portal</p>
+      
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+      
+      <form method="post" action="{{ url_for('login') }}">
+        <div class="form-group">
+          <label class="form-label" for="username">用户名</label>
+          <input type="text" id="username" name="username" class="form-input" required autofocus />
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label" for="password">密码</label>
+          <input type="password" id="password" name="password" class="form-input" required />
+        </div>
+        
+        <button type="submit" class="btn-login">登录</button>
+      </form>
+      
+      <div class="default-hint">
+        默认管理员账号: admin / admin123
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    const canvas = document.getElementById("matrix");
+    const ctx = canvas.getContext("2d");
+    const fontSize = 16;
+    let columns = 0;
+    let drops = [];
+    const chars = "アァカサタナハマヤラワガザダバパイィキシチニヒミリギジヂビピウゥクスツヌフムユルグズヅブプエェケセテネヘメレゲゼデベペオォコソトノホモヨロヲゴゾドボポヴン0123456789";
+
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      columns = Math.floor(canvas.width / fontSize);
+      drops = Array.from({ length: columns }, () => Math.floor(Math.random() * canvas.height));
+    };
+
+    const draw = () => {
+      ctx.fillStyle = "rgba(11, 15, 20, 0.08)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#2ea043";
+      ctx.font = `${fontSize}px monospace`;
+      drops.forEach((y, index) => {
+        const text = chars[Math.floor(Math.random() * chars.length)];
+        const x = index * fontSize;
+        ctx.fillText(text, x, y);
+        if (y > canvas.height && Math.random() > 0.975) {
+          drops[index] = 0;
+        }
+        drops[index] = y + fontSize;
+      });
+    };
+
+    resize();
+    window.addEventListener("resize", resize);
+    setInterval(draw, 50);
+  </script>
+</body>
+</html>

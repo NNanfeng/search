@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>管理后台 - 全文检索</title>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+      margin: 0;
+      padding: 24px;
+      background: #0b0f14;
+      color: #e6edf3;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    #matrix {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background: #0b0f14;
+    }
+    .container { max-width: 1200px; margin: 0 auto; position: relative; z-index: 1; }
+    .card {
+      background: rgba(13, 17, 23, 0.88);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid rgba(48, 54, 61, 0.8);
+      box-shadow: 0 6px 20px rgba(0,0,0,.35);
+      backdrop-filter: blur(6px);
+      margin-bottom: 20px;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .title { font-size: 24px; margin: 0; }
+    .nav { display: flex; gap: 12px; align-items: center; }
+    .nav a {
+      color: #58a6ff;
+      text-decoration: none;
+      font-size: 14px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+    .nav a:hover {
+      background: rgba(48, 54, 61, 0.5);
+    }
+    .tabs {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid #30363d;
+      margin-bottom: 20px;
+    }
+    .tab {
+      padding: 10px 16px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      color: #8b949e;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    .tab.active {
+      color: #2ea043;
+      border-bottom-color: #2ea043;
+    }
+    .tab:hover {
+      color: #c9d1d9;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .btn {
+      padding: 10px 16px;
+      border: 0;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #2ea043, #238636);
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: transform 0.1s;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+    .btn-danger {
+      background: linear-gradient(135deg, #f85149, #da3633);
+    }
+    .btn-secondary {
+      background: #21262d;
+      border: 1px solid #30363d;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+    }
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #30363d;
+    }
+    th {
+      color: #8b949e;
+      font-weight: 600;
+      font-size: 13px;
+    }
+    td {
+      font-size: 14px;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #c9d1d9;
+    }
+    .form-input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      font-size: 14px;
+      background: #0d1117;
+      color: #c9d1d9;
+    }
+    .form-input:focus {
+      outline: none;
+      border-color: #2ea043;
+    }
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal.active {
+      display: flex;
+    }
+    .modal-content {
+      background: #0d1117;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 500px;
+      width: 90%;
+      border: 1px solid #30363d;
+    }
+    .modal-header {
+      font-size: 18px;
+      margin-bottom: 16px;
+      font-weight: 600;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      margin-top: 20px;
+    }
+    .alert {
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-size: 13px;
+    }
+    .alert-success {
+      background: rgba(46, 160, 67, 0.1);
+      border: 1px solid rgba(46, 160, 67, 0.3);
+      color: #7ee787;
+    }
+    .alert-error {
+      background: rgba(248, 81, 73, 0.1);
+      border: 1px solid rgba(248, 81, 73, 0.3);
+      color: #ff7b72;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-admin {
+      background: rgba(46, 160, 67, 0.2);
+      color: #7ee787;
+    }
+    .badge-user {
+      background: rgba(88, 166, 255, 0.2);
+      color: #58a6ff;
+    }
+    .pagination {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+      align-items: center;
+      justify-content: center;
+    }
+    .pagination button {
+      padding: 8px 12px;
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #c9d1d9;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .pagination button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .log-entry {
+      padding: 12px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      margin-bottom: 12px;
+      font-size: 13px;
+    }
+    .log-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    .log-detail {
+      color: #8b949e;
+      line-height: 1.6;
+    }
+    .muted { color: #8b949e; }
+  </style>
+</head>
+<body>
+  <canvas id="matrix"></canvas>
+  <div class="container">
+    <div class="card">
+      <div class="header">
+        <h1 class="title">管理后台</h1>
+        <div class="nav">
+          <span class="muted">管理员: <strong>{{ current_user.username }}</strong></span>
+          <a href="{{ url_for('index') }}">返回搜索</a>
+          <a href="{{ url_for('logout') }}">退出</a>
+        </div>
+      </div>
+      
+      <div id="alert-container"></div>
+      
+      <div class="tabs">
+        <div class="tab active" data-tab="users">用户管理</div>
+        <div class="tab" data-tab="audit">审计日志</div>
+        <div class="tab" data-tab="password">修改密码</div>
+      </div>
+      
+      <!-- Users Tab -->
+      <div class="tab-content active" id="users-tab">
+        <button class="btn" onclick="showAddUserModal()">添加用户</button>
+        <table id="users-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>用户名</th>
+              <th>角色</th>
+              <th>创建时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      
+      <!-- Audit Tab -->
+      <div class="tab-content" id="audit-tab">
+        <div id="audit-logs"></div>
+        <div class="pagination" id="audit-pagination"></div>
+      </div>
+      
+      <!-- Password Tab -->
+      <div class="tab-content" id="password-tab">
+        <div style="max-width: 500px;">
+          <form id="change-password-form">
+            <div class="form-group">
+              <label class="form-label">原密码</label>
+              <input type="password" name="old_password" class="form-input" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">新密码</label>
+              <input type="password" name="new_password" class="form-input" required />
+            </div>
+            <button type="submit" class="btn">修改密码</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Add User Modal -->
+  <div id="add-user-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">添加用户</div>
+      <form id="add-user-form">
+        <div class="form-group">
+          <label class="form-label">用户名</label>
+          <input type="text" name="username" class="form-input" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">密码（至少6位）</label>
+          <input type="password" name="password" class="form-input" required />
+        </div>
+        <div class="form-group">
+          <div class="checkbox-group">
+            <input type="checkbox" name="is_admin" id="is_admin" />
+            <label for="is_admin">管理员权限</label>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('add-user-modal')">取消</button>
+          <button type="submit" class="btn">确定</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- Reset Password Modal -->
+  <div id="reset-password-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">重置密码</div>
+      <form id="reset-password-form">
+        <input type="hidden" name="user_id" />
+        <div class="form-group">
+          <label class="form-label">新密码（至少6位）</label>
+          <input type="password" name="password" class="form-input" required />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('reset-password-modal')">取消</button>
+          <button type="submit" class="btn">确定</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <script>
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const target = tab.dataset.tab;
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(`${target}-tab`).classList.add('active');
+        
+        if (target === 'users') loadUsers();
+        if (target === 'audit') loadAuditLogs(1);
+      });
+    });
+    
+    // Alert helpers
+    function showAlert(message, type = 'success') {
+      const container = document.getElementById('alert-container');
+      const alert = document.createElement('div');
+      alert.className = `alert alert-${type}`;
+      alert.textContent = message;
+      container.innerHTML = '';
+      container.appendChild(alert);
+      setTimeout(() => alert.remove(), 5000);
+    }
+    
+    // Modal helpers
+    function showAddUserModal() {
+      document.getElementById('add-user-modal').classList.add('active');
+    }
+    
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.remove('active');
+    }
+    
+    // Load users
+    async function loadUsers() {
+      const response = await fetch('/admin/users');
+      const users = await response.json();
+      
+      const tbody = document.querySelector('#users-table tbody');
+      tbody.innerHTML = users.map(user => `
+        <tr>
+          <td>${user.id}</td>
+          <td>${user.username}</td>
+          <td>
+            ${user.is_admin ? '<span class="badge badge-admin">管理员</span>' : '<span class="badge badge-user">普通用户</span>'}
+          </td>
+          <td>${user.created_at}</td>
+          <td>
+            <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; margin-right: 8px;" onclick="showResetPasswordModal(${user.id})">重置密码</button>
+            <button class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;" onclick="deleteUser(${user.id}, '${user.username}')">删除</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+    
+    // Add user
+    document.getElementById('add-user-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      
+      const response = await fetch('/admin/users/add', {
+        method: 'POST',
+        body: formData
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        showAlert('用户添加成功');
+        closeModal('add-user-modal');
+        e.target.reset();
+        loadUsers();
+      } else {
+        showAlert(data.error || '添加失败', 'error');
+      }
+    });
+    
+    // Delete user
+    async function deleteUser(userId, username) {
+      if (!confirm(`确定删除用户 "${username}" 吗？`)) return;
+      
+      const response = await fetch(`/admin/users/${userId}/delete`, {
+        method: 'POST'
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        showAlert('用户已删除');
+        loadUsers();
+      } else {
+        showAlert(data.error || '删除失败', 'error');
+      }
+    }
+    
+    // Reset password
+    function showResetPasswordModal(userId) {
+      document.querySelector('#reset-password-form input[name="user_id"]').value = userId;
+      document.getElementById('reset-password-modal').classList.add('active');
+    }
+    
+    document.getElementById('reset-password-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const userId = formData.get('user_id');
+      
+      const response = await fetch(`/admin/users/${userId}/reset-password`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        showAlert('密码已重置');
+        closeModal('reset-password-modal');
+        e.target.reset();
+      } else {
+        showAlert(data.error || '重置失败', 'error');
+      }
+    });
+    
+    // Change password
+    document.getElementById('change-password-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      
+      const response = await fetch('/admin/change-password', {
+        method: 'POST',
+        body: formData
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        showAlert('密码修改成功');
+        e.target.reset();
+      } else {
+        showAlert(data.error || '修改失败', 'error');
+      }
+    });
+    
+    // Load audit logs
+    async function loadAuditLogs(page = 1) {
+      const response = await fetch(`/admin/audit-logs?page=${page}`);
+      const data = await response.json();
+      
+      const container = document.getElementById('audit-logs');
+      container.innerHTML = data.logs.map(log => `
+        <div class="log-entry">
+          <div class="log-header">
+            <span>${log.username} - ${log.query}</span>
+            <span class="muted">${log.timestamp}</span>
+          </div>
+          <div class="log-detail">
+            IP: ${log.ip_address || 'N/A'} | 
+            结果数: ${log.results_count !== null ? log.results_count : 'N/A'} | 
+            耗时: ${log.took_ms !== null ? log.took_ms + 'ms' : 'N/A'}
+            ${log.error ? `<br/>错误: ${log.error}` : ''}
+            ${log.results_summary ? `<br/>摘要: ${log.results_summary}` : ''}
+          </div>
+        </div>
+      `).join('');
+      
+      const pagination = document.getElementById('audit-pagination');
+      pagination.innerHTML = `
+        <button ${page <= 1 ? 'disabled' : ''} onclick="loadAuditLogs(${page - 1})">上一页</button>
+        <span class="muted">第 ${page} / ${data.total_pages} 页</span>
+        <button ${page >= data.total_pages ? 'disabled' : ''} onclick="loadAuditLogs(${page + 1})">下一页</button>
+      `;
+    }
+    
+    // Matrix effect
+    const canvas = document.getElementById("matrix");
+    const ctx = canvas.getContext("2d");
+    const fontSize = 16;
+    let columns = 0;
+    let drops = [];
+    const chars = "アァカサタナハマヤラワガザダバパイィキシチニヒミリギジヂビピウゥクスツヌフムユルグズヅブプエェケセテネヘメレゲゼデベペオォコソトノホモヨロヲゴゾドボポヴン0123456789";
+
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      columns = Math.floor(canvas.width / fontSize);
+      drops = Array.from({ length: columns }, () => Math.floor(Math.random() * canvas.height));
+    };
+
+    const draw = () => {
+      ctx.fillStyle = "rgba(11, 15, 20, 0.08)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#2ea043";
+      ctx.font = `${fontSize}px monospace`;
+      drops.forEach((y, index) => {
+        const text = chars[Math.floor(Math.random() * chars.length)];
+        const x = index * fontSize;
+        ctx.fillText(text, x, y);
+        if (y > canvas.height && Math.random() > 0.975) {
+          drops[index] = 0;
+        }
+        drops[index] = y + fontSize;
+      });
+    };
+
+    resize();
+    window.addEventListener("resize", resize);
+    setInterval(draw, 50);
+    
+    // Initial load
+    loadUsers();
+  </script>
+</body>
+</html>
