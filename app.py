@@ -9,7 +9,14 @@ from datetime import datetime
 from functools import wraps
 
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY", "default-secret-key-change-in-production")
+# Load secret key from environment or generate a warning
+secret_key = os.getenv("SECRET_KEY")
+if not secret_key:
+    import secrets
+    secret_key = secrets.token_hex(32)
+    print("WARNING: No SECRET_KEY environment variable set. Using randomly generated key.")
+    print("Sessions will be invalidated on restart. Set SECRET_KEY for production!")
+app.secret_key = secret_key
 
 ES_HOST = os.getenv("ES_HOST", "http://localhost:9200")
 ES_USER = os.getenv("ES_USER")
@@ -292,6 +299,18 @@ def admin_delete_user(user_id):
     
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    
+    # Check if user to delete is an admin
+    c.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,))
+    row = c.fetchone()
+    if row and row[0]:
+        # Count remaining admins
+        c.execute("SELECT COUNT(*) FROM users WHERE is_admin = 1")
+        admin_count = c.fetchone()[0]
+        if admin_count <= 1:
+            conn.close()
+            return jsonify({"success": False, "error": "不能删除最后一个管理员账号"}), 400
+    
     c.execute("DELETE FROM users WHERE id = ?", (user_id,))
     conn.commit()
     conn.close()
