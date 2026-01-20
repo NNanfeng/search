@@ -5,34 +5,110 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>全文检索</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif; margin: 0; padding: 24px; background: #f6f8fa; }
-    .container { max-width: 1100px; margin: 0 auto; }
-    .card { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+    :root {
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+      margin: 0;
+      padding: 24px;
+      background: #0b0f14;
+      color: #e6edf3;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    #matrix {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background: #0b0f14;
+    }
+    .container { max-width: 1100px; margin: 0 auto; position: relative; z-index: 1; }
+    .card {
+      background: rgba(13, 17, 23, 0.88);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid rgba(48, 54, 61, 0.8);
+      box-shadow: 0 6px 20px rgba(0,0,0,.35);
+      backdrop-filter: blur(6px);
+    }
     .title { font-size: 22px; margin: 0 0 12px; }
-    .search { display: flex; gap: 8px; }
-    .search input[type="text"] { flex: 1; padding: 10px 12px; border: 1px solid #d0d7de; border-radius: 6px; font-size: 14px; }
-    .search button { padding: 10px 16px; border: 0; border-radius: 6px; background: #0969da; color: #fff; cursor: pointer; font-size: 14px; }
-    .muted { color: #57606a; font-size: 13px; }
-    .result { margin-top: 16px; padding: 14px; border: 1px solid #d0d7de; border-radius: 8px; background: #fff; }
-    .result-header { display: flex; flex-wrap: wrap; gap: 10px; font-size: 13px; color: #57606a; }
-    .result pre { background: #f6f8fa; padding: 12px; border-radius: 6px; overflow-x: auto; }
-    mark { background: #ffe58f; padding: 0 2px; }
+    .search { display: flex; gap: 8px; flex-wrap: wrap; }
+    .search input[type="text"] {
+      flex: 1;
+      min-width: 220px;
+      padding: 10px 12px;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      font-size: 14px;
+      background: #0d1117;
+      color: #c9d1d9;
+    }
+    .search button {
+      padding: 10px 16px;
+      border: 0;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #2ea043, #238636);
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .muted { color: #8b949e; font-size: 13px; }
+    .result { margin-top: 16px; padding: 14px; border: 1px solid #30363d; border-radius: 8px; background: #0d1117; }
+    .result-header { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; color: #8b949e; }
+    .result pre { background: #010409; padding: 12px; border-radius: 6px; overflow-x: auto; color: #c9d1d9; }
+    mark { background: #39d353; color: #0b0f14; padding: 0 2px; border-radius: 2px; }
     .pagination { display: flex; gap: 10px; margin-top: 16px; align-items: center; }
-    .pagination a { text-decoration: none; color: #0969da; }
-    .error { color: #d1242f; }
+    .pagination a { text-decoration: none; color: #58a6ff; }
+    .error { color: #ff7b72; }
+    .history { margin-top: 16px; }
+    .history-list { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .history-item {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid #30363d;
+      background: #0d1117;
+      color: #c9d1d9;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .history-actions { display: flex; gap: 10px; align-items: center; margin-top: 10px; }
+    .history-actions button {
+      background: #21262d;
+      color: #c9d1d9;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 12px;
+    }
   </style>
 </head>
 <body>
+  <canvas id="matrix"></canvas>
   <div class="container">
     <div class="card">
       <h1 class="title">全文检索</h1>
-      <form class="search" method="get" action="/">
-        <input type="text" name="q" placeholder="输入关键词" value="{{ q }}" />
+      <form class="search" method="get" action="/" id="search-form">
+        <input type="text" name="q" placeholder="输入关键词" value="{{ q }}" id="search-input" autocomplete="off" />
         <input type="hidden" name="page" value="1" />
         <input type="hidden" name="size" value="{{ size }}" />
         <button type="submit">搜索</button>
       </form>
       <p class="muted">搜索所有索引与字段，支持高亮。</p>
+
+      <div class="history">
+        <div class="muted">历史查询</div>
+        <div class="history-list" id="history-list"></div>
+        <div class="history-actions">
+          <button type="button" id="clear-history">清空历史</button>
+          <span class="muted" id="history-empty">暂无历史</span>
+        </div>
+      </div>
 
       {% if error %}
         <p class="error">错误：{{ error }}</p>
@@ -43,12 +119,13 @@
         {% for hit in results.hits.hits %}
           <div class="result">
             <div class="result-header">
-              <div>index: <strong>{{ hit._index }}</strong></div>
-              <div>id: <strong>{{ hit._id }}</strong></div>
-              <div>score: <strong>{{ hit._score }}</strong></div>
+              <div>数据来源: <strong>{{ hit._index }}</strong></div>
+              <div>ID: <strong>{{ hit._id }}</strong></div>
+              <div>相关度: <strong>{{ hit._score }}</strong></div>
+              <div>字段数: <strong>{{ hit._source|length }}</strong></div>
             </div>
             {% if hit.highlight %}
-              <div class="muted" style="margin-top:8px;">高亮：</div>
+              <div class="muted" style="margin-top:8px;">高亮摘要：</div>
               <ul>
                 {% for field, fragments in hit.highlight.items() %}
                   <li><strong>{{ field }}</strong>: {{ fragments|join(' ... ')|safe }}</li>
@@ -71,5 +148,102 @@
       {% endif %}
     </div>
   </div>
+  <script>
+    const STORAGE_KEY = "searchHistory";
+    const maxHistory = 10;
+    const historyList = document.getElementById("history-list");
+    const historyEmpty = document.getElementById("history-empty");
+    const searchInput = document.getElementById("search-input");
+    const searchForm = document.getElementById("search-form");
+    const clearBtn = document.getElementById("clear-history");
+
+    const readHistory = () => {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+      } catch (err) {
+        return [];
+      }
+    };
+
+    const writeHistory = (items) => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(0, maxHistory)));
+    };
+
+    const renderHistory = () => {
+      const items = readHistory();
+      historyList.innerHTML = "";
+      if (!items.length) {
+        historyEmpty.style.display = "inline";
+        return;
+      }
+      historyEmpty.style.display = "none";
+      items.forEach((item) => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "history-item";
+        chip.textContent = item;
+        chip.addEventListener("click", () => {
+          searchInput.value = item;
+          searchForm.submit();
+        });
+        historyList.appendChild(chip);
+      });
+    };
+
+    const addHistory = (value) => {
+      const items = readHistory();
+      const next = [value, ...items.filter((item) => item !== value)];
+      writeHistory(next);
+      renderHistory();
+    };
+
+    searchForm.addEventListener("submit", () => {
+      const value = searchInput.value.trim();
+      if (value) {
+        addHistory(value);
+      }
+    });
+
+    clearBtn.addEventListener("click", () => {
+      localStorage.removeItem(STORAGE_KEY);
+      renderHistory();
+    });
+
+    renderHistory();
+
+    const canvas = document.getElementById("matrix");
+    const ctx = canvas.getContext("2d");
+    const fontSize = 16;
+    let columns = 0;
+    let drops = [];
+    const chars = "アァカサタナハマヤラワガザダバパイィキシチニヒミリギジヂビピウゥクスツヌフムユルグズヅブプエェケセテネヘメレゲゼデベペオォコソトノホモヨロヲゴゾドボポヴン0123456789";
+
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      columns = Math.floor(canvas.width / fontSize);
+      drops = Array.from({ length: columns }, () => Math.floor(Math.random() * canvas.height));
+    };
+
+    const draw = () => {
+      ctx.fillStyle = "rgba(11, 15, 20, 0.08)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#2ea043";
+      ctx.font = `${fontSize}px monospace`;
+      drops.forEach((y, index) => {
+        const text = chars[Math.floor(Math.random() * chars.length)];
+        const x = index * fontSize;
+        ctx.fillText(text, x, y);
+        if (y > canvas.height && Math.random() > 0.975) {
+          drops[index] = 0;
+        }
+        drops[index] = y + fontSize;
+      });
+    };
+
+    resize();
+    window.addEventListener("resize", resize);
+    setInterval(draw, 50);
+  </script>
 </body>
 </html>
